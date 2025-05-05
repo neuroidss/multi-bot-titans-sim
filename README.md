@@ -1,4 +1,4 @@
-# Multi-Bot Titans Simulator (v5.15 - AV Process Fix)
+# Multi-Bot Titans Simulator
 
 🌌 A complex simulation of AI-powered bots competing in a dynamic grid environment with real-time AV processing
 
