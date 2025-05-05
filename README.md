@@ -2,6 +2,8 @@
 
 🌌 A complex simulation of AI-powered bots competing in a dynamic grid environment with real-time AV processing
 
+[![Simulation Screencast](https://img.youtube.com/vi/Lgj_rm51TZ8/0.jpg)](https://www.youtube.com/watch?v=Lgj_rm51TZ8)
+
 ![Simulation Screenshot](https://github.com/neuroidss/multi-bot-titans-sim/blob/main/Screenshot%20from%202025-05-05%2002-56-48.png?raw=true) <!-- Replace with actual screenshot path -->
 
 ## 🚀 Features
