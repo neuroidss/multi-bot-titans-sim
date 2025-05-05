@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Ensure proper scaling and disable zoom for mobile -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Multi-Bot Titans Sim v5.15 - AV Process Fix</title> <!-- Version Bump -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <style>
+        /* --- CSS Styles (Enhanced for Mobile and Clarity - v5.15 AV Process Fix) --- */
+        :root {
+             --bg-color: #f0f2f5; /* Slightly softer background */
+             --container-bg: #ffffff;
+             --border-color: #d9d9d9; /* Softer border */
+             --text-color: #333;
+             --primary-color: #1890ff; /* Ant Design Blue */
+             --primary-hover: #40a9ff;
+             --secondary-color: #faad14; /* Ant Design Orange */
+             --secondary-hover: #ffc53d;
+             --danger-color: #f5222d; /* Ant Design Red */
+             --danger-hover: #ff4d4f;
+             --success-color: #52c41a; /* Ant Design Green */
+             --success-hover: #73d13d;
+             --info-color: #13c2c2; /* Ant Design Cyan */
+             --info-hover: #36cfc9;
+             --warn-color: #fa8c16; /* Darker Orange for Warnings */
+             --frozen-color: #40a9ff; /* Use a variant of primary for frozen */
+             --param-label-color: #0050b3; /* Darker blue for labels */
+             --player-color: var(--success-color);
+             --player-controlled-color: var(--success-color); /* Same as player for consistency */
+             --hardcoded-color: var(--primary-color);
+             --learning-color: var(--danger-color);
+             --learning-available-color: #ff7a45; /* Orange-ish for available learning bots */
+             --mobile-button-bg: #f0f0f0;
+             --mobile-button-border: #ccc;
+             --mobile-button-active-bg: #e0e0e0;
+             --target-indicator-bg: rgba(255, 255, 0, 0.7); /* Yellowish for target indicator */
+             --target-crosshair-color: rgba(255, 0, 0, 0.7); /* Red crosshair */
+        }
+        html, body { height: 100%; margin: 0; padding: 0; overflow-x: hidden; } /* Prevent horizontal scroll */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"; display: flex; flex-direction: column; align-items: center; padding: 10px; box-sizing: border-box; line-height: 1.5; background-color: var(--bg-color); color: var(--text-color); -webkit-tap-highlight-color: transparent; /* Disable tap highlight */ }
+        canvas { border: 1px solid var(--border-color); margin-bottom: 10px; display: block; max-width: 100%; height: auto; touch-action: manipulation; /* Allows pinch zoom, prevents double-tap zoom */ background-color: var(--container-bg); cursor: crosshair; image-rendering: pixelated; /* Keep pixels sharp */ }
+        .main-container { display: flex; flex-direction: row; flex-wrap: wrap; align-items: flex-start; width: 100%; max-width: 1700px; justify-content: center; gap: 25px; padding-bottom: 150px; /* Space for mobile controls */ }
+        .grid-container { flex-basis: 600px; flex-grow: 1; max-width: 800px; min-width: 300px; /* Smaller min-width */ display: flex; flex-direction: column; justify-content: flex-start; align-items: center; }
+        .controls-and-info { display: flex; flex-direction: column; flex-basis: 480px; flex-grow: 1; min-width: 320px; max-width: 700px; background-color: var(--container-bg); padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .simulation-controls, .param-controls, .player-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; align-items: center; }
+        button { padding: 8px 14px; cursor: pointer; border: none; border-radius: 5px; font-size: 0.9em; font-weight: 500; transition: background-color 0.2s ease, box-shadow 0.2s ease; }
+        button:hover:not(:disabled) { box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        button:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
+        button:disabled { background-color: #bdc3c7 !important; cursor: not-allowed; opacity: 0.6; box-shadow: none; }
+
+        #startButton { background-color: var(--success-color); color: white; }
+        #startButton:hover:not(:disabled) { background-color: var(--success-hover); }
+        #stopButton { background-color: var(--danger-color); color: white; }
+        #stopButton:hover:not(:disabled) { background-color: var(--danger-hover); }
+        #resetRoundButton, #resetFullButton { background-color: var(--secondary-color); color: white; }
+        #resetRoundButton:hover:not(:disabled), #resetFullButton:hover:not(:disabled) { background-color: var(--secondary-hover); }
+        #applyParamsButton { background-color: #722ed1; color: white; } /* Ant Purple */
+        #applyParamsButton:hover:not(:disabled) { background-color: #9254de; }
+        #saveParamsButton, #loadParamsButton, #resetParamsButton { background-color: var(--info-color); font-size: 0.85em; padding: 6px 10px; color: white;}
+        #saveParamsButton:hover:not(:disabled), #loadParamsButton:hover:not(:disabled), #resetParamsButton:hover:not(:disabled) { background-color: var(--info-hover); }
+        #joinButton { background-color: var(--primary-color); color: white; margin-left: auto; } /* Shown if join possible */
+        #leaveButton { background-color: var(--warn-color); color: white; margin-left: auto; display: none; } /* Initially hidden */
+        #leaveButton:hover:not(:disabled) { background-color: #ffc53d; }
+
+
+        .parameters { border: 1px solid #eee; padding: 15px; margin-bottom: 15px; background-color: #fdfdfd; border-radius: 5px; }
+        .parameters h3 { margin-top: 0; margin-bottom: 15px; font-size: 1.1em; border-bottom: 1px solid #eee; padding-bottom: 8px; color: #444; }
+        .parameters div.param-item { margin-bottom: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 5px 10px; font-size: 0.88em; }
+        .parameters label { display: inline-block; min-width: 160px; font-weight: 500; flex-shrink: 0; color: #555; }
+        .parameters input[type=number], .parameters input[type=text], .parameters input[type=checkbox], .parameters select { padding: 5px 7px; box-sizing: border-box; border: 1px solid var(--border-color); border-radius: 4px; font-size: 1em; background-color: #fff; } /* Added select */
+        .parameters input[type=number], .parameters input[type=text], .parameters select { width: 100px; } /* Slightly wider, consistent width */
+        .parameters input[type=range] { flex-grow: 1; cursor: pointer; } /* Range slider */
+        .parameters .range-value { font-weight: bold; min-width: 40px; text-align: right; } /* Display value for range */
+        .parameters input[type=checkbox] { width: auto; margin-left: 5px; transform: scale(1.1); }
+        .parameters .tooltip { display: inline-block; background-color: #bfbfbf; border-radius: 50%; width: 16px; height: 16px; text-align: center; line-height: 16px; font-size: 11px; color: white; font-weight: bold; vertical-align: middle; cursor: help; position: relative; margin-left: 3px; }
+        .parameters .reset-hint { font-style: italic; font-size: 0.85em; color: var(--warn-color); margin-left: 6px; display: none; white-space: nowrap; font-weight: 500; }
+        .parameters div.param-item.changed label { color: var(--warn-color); font-weight: bold;}
+        .parameters div.param-item.needs-reset .reset-hint { display: inline !important; }
+        .tooltip .tooltiptext { visibility: hidden; width: 220px; background-color: rgba(0,0,0,0.8); color: #fff; text-align: center; border-radius: 6px; padding: 8px; position: absolute; z-index: 10; bottom: 130%; left: 50%; margin-left: -110px; opacity: 0; transition: opacity 0.3s; font-size: 0.85em; font-weight: normal; line-height: 1.3; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+        .tooltip:hover .tooltiptext, .tooltip:focus .tooltiptext, .tooltip:active .tooltiptext { visibility: visible; opacity: 1; }
+
+        .info { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
+        .bot-type-info { border: 1px solid #e8e8e8; padding: 10px; font-size: 0.88em; background-color: #fafafa; border-radius: 5px; }
+        .bot-type-info b { display: block; margin-bottom: 4px; font-size: 1.05em; }
+        .stats { margin-top: 15px; font-weight: bold; padding: 12px; background-color: #e6f7ff; border: 1px solid #bae7ff; border-radius: 5px; font-size: 0.95em; line-height: 1.5; }
+        .frozen-status { color: var(--frozen-color); font-weight: bold; border: 1px dashed var(--frozen-color); padding: 1px 4px; border-radius: 4px; display: inline-block; font-size: 0.8em; margin-left: 4px; background-color: #e6f7ff; }
+        hr { width: 100%; margin: 20px 0; border: 0; border-top: 1px solid #e8e8e8; }
+
+        .library-param-label { font-weight: bold; color: var(--param-label-color); }
+        .param-group { border: 1px dashed #e0e0e0; padding: 12px; margin-bottom: 12px; border-radius: 4px; background-color: #fdfdfd;}
+        .param-group h4 { margin-top: 0; margin-bottom: 10px; font-size: 1em; color: #666; }
+        #status, #round-info, #player-info { margin-top: 8px; font-weight: bold; }
+        #status { font-size: 1.05em; color: #333; min-height: 1.4em; }
+        #round-info { font-size: 0.95em; color: #555;}
+        #player-info { font-size: 0.9em; color: var(--player-color); margin-bottom: 8px; }
+        #connection-status { position: fixed; top: 5px; right: 8px; font-size: 0.8em; padding: 3px 6px; border-radius: 4px; background-color: var(--danger-color); color: white; font-weight: bold; z-index: 1000; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+        #connection-status.connected { background-color: var(--success-color); }
+
+        /* Bot Color Indicators */
+        .hc-color { color: var(--hardcoded-color); font-weight: bold;}
+        .ln-color { color: var(--learning-color); font-weight: bold;}
+        .pl-color { color: var(--player-color); font-weight: bold;}
+        .player-controlled-marker {
+            font-weight: bold;
+            color: var(--player-controlled-color);
+            margin-left: 5px;
+            font-size: 0.9em;
+        }
+        .learning-available-marker { /* Style for the outline/indicator */
+            outline: 2px dashed var(--learning-available-color);
+            outline-offset: 2px;
+            cursor: pointer; /* Indicate clickable */
+        }
+
+        /* Target Indicator */
+        #target-indicator {
+            position: fixed;
+            top: 5px;
+            left: 8px;
+            font-size: 0.85em;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background-color: var(--target-indicator-bg);
+            color: #333;
+            font-weight: bold;
+            z-index: 1000;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            display: none; /* Hidden by default */
+        }
+
+
+        /* --- Mobile Controls --- */
+        #mobile-controls {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: rgba(230, 230, 230, 0.9); /* Semi-transparent background */
+            padding: 10px 5px;
+            box-sizing: border-box;
+            display: none; /* Initially hidden, shown via JS */
+            flex-direction: row;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 900;
+            border-top: 1px solid var(--border-color);
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+            touch-action: manipulation; /* Important for preventing unwanted gestures */
+            -webkit-user-select: none; /* Disable text selection */
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            pointer-events: none; /* Disabled by default */
+            opacity: 0.7; /* Dimmed when disabled */
+        }
+        #mobile-controls.enabled {
+            pointer-events: auto; /* Enable interaction */
+            opacity: 1.0;
+        }
+
+
+        #mobile-controls button {
+            font-size: 18px; /* Larger font for touch */
+            padding: 12px 10px; /* Larger padding */
+            min-width: 55px; /* Ensure decent tap area */
+            text-align: center;
+            background-color: var(--mobile-button-bg);
+            border: 1px solid var(--mobile-button-border);
+            border-radius: 8px;
+            font-weight: bold;
+            color: var(--text-color);
+        }
+        #mobile-controls.enabled button:active { /* Feedback on tap only when enabled */
+             background-color: var(--mobile-button-active-bg);
+             transform: scale(0.95);
+        }
+
+        /* Show mobile controls only on smaller screens */
+        @media (max-width: 768px) {
+            #mobile-controls { display: flex; }
+            .main-container { padding-bottom: 80px; } /* Adjust main padding */
+            .grid-container { min-width: unset; width: 100%; max-width: 100%; flex-basis: auto; } /* Full width canvas */
+            .controls-and-info { min-width: unset; width: 100%; max-width: 100%; flex-basis: auto; margin-top:15px; }
+             .parameters label { min-width: 130px; } /* Adjust label width on mobile */
+             .desktop-only { display: none; }
+        }
+        @media (min-width: 769px) {
+            #mobile-controls { display: none; } /* Hide on larger screens */
+        }
+
+    </style>
+</head>
+<body>
+    <h1>Multi-Bot Titans Sim (v5.15 - AV Process Fix)</h1>
+    <p style="max-width: 900px; text-align: center; margin-bottom: 15px; font-size: 0.95em;">
+        Bots navigate, claim goals, punch opponents. Tap/Click grid to set target for player bot. Tap self to cancel.
+        <span class="ln-color">Learning Bots (Red)</span> use backend PyTorch Neural Memory.
+        <span class="hc-color">Hardcoded Bots (Blue)</span> use rules.
+        <span class="pl-color">Players (Green)</span> control a Learning Bot. Click <span style="color: var(--learning-available-color); font-weight:bold;">Available Learning Bot</span> or "Join Game" button.
+    </p>
+    <p style="font-size:0.85em; color: var(--danger-color);"><i>Backend (`server.py`) must be running. High bot/grid counts need strong GPU (Check server console for CUDA status).
+    <b>AV features require libraries installed (see server console) and enabling options below. Visualization runs in a separate process. Check server console for library status.</b></i></p>
+    <div id="connection-status" title="Connection Status">Connecting...</div>
+    <div id="target-indicator">Target: None</div>
+
+    <div class="main-container">
+        <div class="grid-container">
+            <canvas id="gridCanvas" width="600" height="600"></canvas>
+             <div id="player-info">Player Bot ID: None</div>
+             <p style="font-size: 0.85em; margin-top: 5px;" class="desktop-only">Controls: Click/Drag on grid to set target. Click self to cancel. Click available Learning Bot or Join button.</p>
+        </div>
+
+        <div class="controls-and-info">
+             <div class="simulation-controls">
+                <button id="startButton" title="Start Simulation" disabled>Start</button>
+                <button id="stopButton" disabled title="Stop Simulation">Stop</button>
+                <button id="resetRoundButton" title="Start a New Round (May use new env)" disabled>New Round</button>
+                <button id="resetFullButton" title="Reset Environment and Learning State" disabled>Reset All</button>
+                 <button id="joinButton" title="Join as Player (Controls first available Learning Bot)" disabled>Join Game</button>
+                 <button id="leaveButton" title="Relinquish Control of Bot" disabled>Leave Bot</button>
+             </div>
+                 <div id="status" style="margin-bottom: 5px;">Status: Connecting...</div>
+                 <div id="round-info" style="margin-bottom: 15px;">Round: 0</div>
+            <hr>
+            <div class="parameters">
+                 <!-- Parameter structure matches backend CONFIG keys -->
+                 <h3>Simulation Parameters</h3>
+                 <div class="param-group">
+                      <h4>General</h4>
+                     <div data-param="SIMULATION_SPEED_MS" class="param-item">
+                         <label for="param-SIMULATION_SPEED_MS">Sim Speed (ms delay):</label>
+                         <input type="number" id="param-SIMULATION_SPEED_MS" name="SIMULATION_SPEED_MS" min="1" max="1000" step="10">
+                         <span class="tooltip" tabindex="0">?<span class="tooltiptext">Target delay between server steps. Lower is faster. (Requires Apply)</span></span>
+                         <span class="reset-hint"></span>
+                     </div>
+                     <div data-param="FREEZE_DURATION" class="param-item">
+                         <label for="param-FREEZE_DURATION">Freeze Duration (steps):</label>
+                         <input type="number" id="param-FREEZE_DURATION" name="FREEZE_DURATION" min="1" max="100">
+                         <span class="tooltip" tabindex="0">?<span class="tooltiptext">Steps bots stay frozen after punch. (Requires Apply)</span></span>
+                          <span class="reset-hint"></span>
+                     </div>
+                     <!-- AV Controls Updated -->
+                     <div data-param="ENABLE_AV" class="param-item needs-reset">
+                         <label for="param-ENABLE_AV">Enable AV Processing:</label>
+                         <input type="checkbox" id="param-ENABLE_AV" name="ENABLE_AV">
+                         <span class="tooltip" tabindex="0">?<span class="tooltiptext">Enable backend processing of bot data for audio/visuals. Requires AV libs installed (see console). Requires Reset All.</span></span>
+                         <span class="reset-hint">(Reset Req.)</span>
+                     </div>
+                      <div data-param="ENABLE_AV_OUTPUT" class="param-item needs-reset">
+                         <label for="param-ENABLE_AV_OUTPUT">Enable AV Output (Audio/Window):</label>
+                         <input type="checkbox" id="param-ENABLE_AV_OUTPUT" name="ENABLE_AV_OUTPUT">
+                         <span class="tooltip" tabindex="0">?<span class="tooltiptext">If AV Processing is enabled, this enables SoundDevice audio and opens the visualization window (VisPy/Matplotlib) or enables web data stream. Requires Reset All.</span></span>
+                         <span class="reset-hint">(Reset Req.)</span>
+                     </div>
+                     <div data-param="VISUALIZATION_MODE" class="param-item needs-reset">
+                         <label for="param-VISUALIZATION_MODE">Visualization Mode:</label>
+                         <select id="param-VISUALIZATION_MODE" name="VISUALIZATION_MODE">
+                             <option value="vispy">VisPy (3D Window)</option>
+                             <option value="matplotlib">Matplotlib (3D Window)</option>
+                             <option value="web">Web (Data Stream)</option>
+                             <option value="none">None</option>
+                         </select>
+                         <span class="tooltip" tabindex="0">?<span class="tooltiptext">Selects the visualization backend if AV Output is enabled. Requires corresponding library installed (see console). 'Web' streams data to /visuals endpoint. Requires Reset All.</span></span>
+                         <span class="reset-hint">(Reset Req.)</span>
+                     </div>
+                 </div>
+
+                 <div class="param-group">
+                     <h4>Environment (Require Reset)</h4>
+                     <div data-param="GRID_SIZE" class="param-item needs-reset">
+                         <label for="param-GRID_SIZE">Grid Size:</label>
+                         <input type="number" id="param-GRID_SIZE" name="GRID_SIZE" min="10" max="200">
+                         <span class="tooltip" tabindex="0">?<span class="tooltiptext">Width/Height of the grid. (Req. Reset All)</span></span>
+                         <span class="reset-hint">(Reset Req.)</span>
+                     </div>
+                     <div data-param="NUM_GOALS" class="param-item needs-reset">
+                         <label for="param-NUM_GOALS">Num Goals:</label>
+                         <input type="number" id="param-NUM_GOALS" name="NUM_GOALS" min="0" max="500">
+                          <span class="tooltip" tabindex="0">?<span class="tooltiptext">Number of goals per round. (Req. Reset All)</span></span>
+                         <span class="reset-hint">(Reset Req.)</span>
+                     </div>
+                     <div data-param="NUM_HC_BOTS" class="param-item needs-reset">
+                         <label for="param-NUM_HC_BOTS">Num Hardcoded Bots:</label>
+                         <input type="number" id="param-NUM_HC_BOTS" name="NUM_HC_BOTS" min="0" max="100">
+                          <span class="tooltip" tabindex="0">?<span class="tooltiptext">Number of blue (rule-based) bots. (Req. Reset All)</span></span>
+                         <span class="reset-hint">(Reset Req.)</span>
+                     </div>
+                     <div data-param="NUM_LEARNING_BOTS" class="param-item needs-reset">
+                         <label for="param-NUM_LEARNING_BOTS">Num Learning Bots:</label>
+                         <input type="number" id="param-NUM_LEARNING_BOTS" name="NUM_LEARNING_BOTS" min="0" max="100">
+                          <span class="tooltip" tabindex="0">?<span class="tooltiptext">Number of red (Titans learning) bots. Player takes over one of these. (Req. Reset All)</span></span>
+                         <span class="reset-hint">(Reset Req.)</span>
+                     </div>
+                      <div data-param="MAX_STEPS_PER_ROUND" class="param-item needs-reset">
+                         <label for="param-MAX_STEPS_PER_ROUND">Max Steps/Round:</label>
+                         <input type="number" id="param-MAX_STEPS_PER_ROUND" name="MAX_STEPS_PER_ROUND" min="100" max="10000">
+                          <span class="tooltip" tabindex="0">?<span class="tooltiptext">Max steps per bot before round ends. (Req. New Round)</span></span>
+                          <span class="reset-hint">(Reset Req.)</span>
+                     </div>
+                     <div data-param="VISIBILITY_RANGE" class="param-item needs-reset">
+                         <label for="param-VISIBILITY_RANGE">Sense Visibility Range:</label>
+                         <input type="number" id="param-VISIBILITY_RANGE" name="VISIBILITY_RANGE" min="2" max="50">
+                          <span class="tooltip" tabindex="0">?<span class="tooltiptext">How far bots 'see' (Manhattan dist). Affects input stream size/content. (Req. New Round)</span></span>
+                          <span class="reset-hint">(Reset Req.)</span>
+                     </div>
+                      <div data-param="RANDOMIZE_ENV_PER_ROUND" class="param-item">
+                         <label for="param-RANDOMIZE_ENV_PER_ROUND">New Env Each Round:</label>
+                         <input type="checkbox" id="param-RANDOMIZE_ENV_PER_ROUND" name="RANDOMIZE_ENV_PER_ROUND">
+                         <span class="tooltip" tabindex="0">?<span class="tooltiptext">If checked, 'New Round' generates a new obstacle/goal layout. If unchecked, it resets goals on the same layout. (Requires Apply)</span></span>
+                         <span class="reset-hint"></span>
+                     </div>
+                 </div>
+
+                 <div class="param-group">
+                     <h4>Learning Bot (Titans Lib - Require Reset All)</h4>
+                      <div data-param="LEARNING_BOT_DIM" class="param-item needs-reset">
+                         <label class="library-param-label" for="param-LEARNING_BOT_DIM">Memory Dimension:</label>
+                         <input type="number" id="param-LEARNING_BOT_DIM" name="LEARNING_BOT_DIM" min="32" max="4096" step="16">
+                         <span class="tooltip" tabindex="0">?<span class="tooltiptext">Internal dimension (dim) of NeuralMemory and feature vector. Larger = more capacity but more VRAM. Must be >= features (~15). (Req. Reset All)</span></span>
+                         <span class="reset-hint">(Reset Req.)</span>
+                      </div>
+                      <div data-param="LEARNING_BOT_MEM_DEPTH" class="param-item needs-reset">
+                         <label class="library-param-label" for="param-LEARNING_BOT_MEM_DEPTH">Memory MLP Depth:</label>
+                         <input type="number" id="param-LEARNING_BOT_MEM_DEPTH" name="LEARNING_BOT_MEM_DEPTH" min="1" max="12">
+                         <span class="tooltip" tabindex="0">?<span class="tooltiptext">Layers in MemoryMLP. Deeper learns complex patterns but slower. (Req. Reset All)</span></span>
+                         <span class="reset-hint">(Reset Req.)</span>
+                      </div>
+                       <div data-param="LEARNING_BOT_LR" class="param-item needs-reset">
+                         <label class="library-param-label" for="param-LEARNING_BOT_LR">Memory Learn Rate (LR):</label>
+                         <input type="number" id="param-LEARNING_BOT_LR" name="LEARNING_BOT_LR" min="0.00001" max="0.1" step="0.00001" value="0.001">
+                         <span class="tooltip" tabindex="0">?<span class="tooltiptext">AdamW Learning rate (lr) for memory updates. Controls adaptation speed. (Req. Reset All)</span></span>
+                          <span class="reset-hint">(Reset Req.)</span>
+                      </div>
+                       <div data-param="LEARNING_BOT_WEIGHT_DECAY" class="param-item needs-reset">
+                         <label class="library-param-label" for="param-LEARNING_BOT_WEIGHT_DECAY">Memory Weight Decay:</label>
+                         <input type="number" id="param-LEARNING_BOT_WEIGHT_DECAY" name="LEARNING_BOT_WEIGHT_DECAY" min="0.0" max="0.1" step="0.001" value="0.01">
+                         <span class="tooltip" tabindex="0">?<span class="tooltiptext">AdamW Weight decay (forgetting) for memory weights. (Req. Reset All)</span></span>
+                          <span class="reset-hint">(Reset Req.)</span>
+                      </div>
+                       <div data-param="LEARNING_BOT_MOMENTUM" class="param-item needs-reset">
+                         <label class="library-param-label" for="param-LEARNING_BOT_MOMENTUM">Memory Momentum (β1):</label>
+                         <input type="number" id="param-LEARNING_BOT_MOMENTUM" name="LEARNING_BOT_MOMENTUM" min="0.5" max="0.999" step="0.001" value="0.9">
+                         <span class="tooltip" tabindex="0">?<span class="tooltiptext">AdamW beta1 (momentum) for memory updates. (Req. Reset All)</span></span>
+                          <span class="reset-hint">(Reset Req.)</span>
+                      </div>
+                      <div data-param="LEARNING_BOT_MAX_GRAD_NORM" class="param-item needs-reset">
+                         <label class="library-param-label" for="param-LEARNING_BOT_MAX_GRAD_NORM">Memory Max Grad Norm:</label>
+                         <input type="number" id="param-LEARNING_BOT_MAX_GRAD_NORM" name="LEARNING_BOT_MAX_GRAD_NORM" min="0.1" max="10.0" step="0.1" value="1.0">
+                         <span class="tooltip" tabindex="0">?<span class="tooltiptext">Max norm for gradient clipping during updates. Prevents instability. (Req. Reset All)</span></span>
+                         <span class="reset-hint">(Reset Req.)</span>
+                      </div>
+                 </div>
+                  <div class="param-group">
+                     <h4>Learning Bot Behavior (Apply Req.)</h4>
+                     <div data-param="LEARNING_BOT_BASE_EXPLORATION_RATE" class="param-item">
+                         <label for="param-LEARNING_BOT_BASE_EXPLORATION_RATE">Base Explore Rate (%):</label>
+                         <input type="number" id="param-LEARNING_BOT_BASE_EXPLORATION_RATE" name="LEARNING_BOT_BASE_EXPLORATION_RATE" min="0" max="100" step="1" value="15">
+                         <span class="tooltip" tabindex="0">?<span class="tooltiptext">Base chance (%) Learning Bot explores instead of exploiting memory. Rate increases with anomaly. (Requires Apply)</span></span>
+                           <span class="reset-hint"></span>
+                     </div>
+                      <div data-param="LEARNING_BOT_RULE_EXPLORE_PERCENT" class="param-item">
+                         <label for="param-LEARNING_BOT_RULE_EXPLORE_PERCENT">Rule Exploration (%):</label>
+                         <input type="number" id="param-LEARNING_BOT_RULE_EXPLORE_PERCENT" name="LEARNING_BOT_RULE_EXPLORE_PERCENT" min="0" max="100" step="1" value="60">
+                         <span class="tooltip" tabindex="0">?<span class="tooltiptext">Of the exploration actions, percentage (%) that use rule-based logic vs random. (Requires Apply)</span></span>
+                           <span class="reset-hint"></span>
+                     </div>
+                     <div data-param="PLAYER_CONTROL_PERCENT" class="param-item">
+                        <label for="param-PLAYER_CONTROL_PERCENT">Player Control Influence (%):</label>
+                        <input type="range" id="param-PLAYER_CONTROL_PERCENT" name="PLAYER_CONTROL_PERCENT" min="0" max="100" step="1" value="100">
+                        <span class="range-value" id="value-PLAYER_CONTROL_PERCENT">100%</span>
+                        <span class="tooltip" tabindex="0">?<span class="tooltiptext">How much player input overrides AI prediction (0% = full AI, 100% = full Player). Blends probabilistically. (Requires Apply)</span></span>
+                        <span class="reset-hint"></span>
+                    </div>
+                 </div>
+
+                 <hr>
+                 <div class="param-controls">
+                    <button id="applyParamsButton" title="Send Changed Parameters to Server" disabled>Apply Changes</button>
+                    <button id="saveParamsButton" title="Save Current UI Parameters to Browser Storage">Save Params</button>
+                    <button id="loadParamsButton" title="Load Parameters from Browser Storage">Load Params</button>
+                    <button id="resetParamsButton" title="Reset UI Parameters to Default Values">Reset UI to Default</button>
+                 </div>
+            </div>
+
+             <div class="stats">
+                Goals Claimed (Total):<br>
+                <span class="hc-color">Hardcoded:</span> <span id="hc-total-goals">0</span> |
+                <span class="ln-color">Learning</span>/<span class="pl-color">Player:</span> <span id="learning-total-goals">0</span><br>
+                Avg Bot Anomaly (Learning): <span id="learning-avg-anomaly">N/A</span>
+            </div>
+
+            <div class="info">
+                <div id="bots-info-container" style="max-height: 250px; overflow-y: auto; border: 1px solid #f0f0f0; padding: 5px; background: #fff;">
+                    <!-- Bot specific info populated here -->
+                     <div class="bot-type-info"><b>Bots Information Loading...</b></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Mobile Controls Section -->
+    <div id="mobile-controls"> <!-- Initially disabled via style, enabled via JS -->
+        <button id="btn-up">▲</button> <!-- Up -->
+        <button id="btn-left">◀</button> <!-- Left -->
+        <button id="btn-right">▶</button> <!-- Right -->
+        <button id="btn-down">▼</button> <!-- Down -->
+        <button id="btn-punch">Punch</button> <!-- Punch (Space) -->
+        <button id="btn-claim">Claim</button> <!-- Claim (Enter) -->
+    </div>
+
+    <script>
+        // ================================================================
+        // --- Client-Side JavaScript (v5.15 - AV Process Fix) ---
+        // ================================================================
+        let socket;
+        const canvas = document.getElementById('gridCanvas');
+        const ctx = canvas.getContext('2d');
+        const statusEl = document.getElementById('status');
+        const roundInfoEl = document.getElementById('round-info');
+        const playerInfoEl = document.getElementById('player-info');
+        const connectionStatusEl = document.getElementById('connection-status');
+        const gridContainerEl = document.querySelector('.grid-container');
+        const botsInfoContainerEl = document.getElementById('bots-info-container');
+        const mobileControlsEl = document.getElementById('mobile-controls');
+        const targetIndicatorEl = document.getElementById('target-indicator');
+
+        // --- Parameter Elements Cache ---
+        const paramInputs = {};
+        const paramItems = {};
+        const rangeValueDisplays = {}; // For range sliders
+        document.querySelectorAll('.parameters .param-item').forEach(paramItemDiv => {
+            const key = paramItemDiv.dataset.param;
+            const input = paramItemDiv.querySelector('input, select'); // Include select
+            if (key && input && paramItemDiv) {
+                paramInputs[key] = input;
+                paramItems[key] = paramItemDiv;
+                input.addEventListener('input', () => handleParamInputChange(key));
+                input.addEventListener('change', () => handleParamInputChange(key));
+                if (input.type === 'range') {
+                    const valueDisplay = paramItemDiv.querySelector('.range-value');
+                    if (valueDisplay) {
+                        rangeValueDisplays[key] = valueDisplay;
+                        valueDisplay.textContent = `${input.value}%`; // Initial display
+                        input.addEventListener('input', () => { valueDisplay.textContent = `${input.value}%`; });
+                    }
+                }
+            } else { console.warn("Param item found without key or input/select:", paramItemDiv); }
+        });
+        function handleParamInputChange(key) {
+            markParamChanged(key);
+             if (rangeValueDisplays[key] && paramInputs[key].type === 'range') {
+                 rangeValueDisplays[key].textContent = `${paramInputs[key].value}%`;
+             }
+        }
+
+        // --- Buttons ---
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        const resetRoundButton = document.getElementById('resetRoundButton');
+        const resetFullButton = document.getElementById('resetFullButton');
+        const applyParamsButton = document.getElementById('applyParamsButton');
+        const saveParamsButton = document.getElementById('saveParamsButton');
+        const loadParamsButton = document.getElementById('loadParamsButton');
+        const resetParamsButton = document.getElementById('resetParamsButton');
+        const joinButton = document.getElementById('joinButton');
+        const leaveButton = document.getElementById('leaveButton');
+        const mobileUp = document.getElementById('btn-up');
+        const mobileLeft = document.getElementById('btn-left');
+        const mobileRight = document.getElementById('btn-right');
+        const mobileDown = document.getElementById('btn-down');
+        const mobilePunch = document.getElementById('btn-punch');
+        const mobileClaim = document.getElementById('btn-claim');
+
+        // --- Client State ---
+        let serverConfig = {}; // Config as known by the server (or defaults)
+        let uiDefaults = {};   // Defaults loaded on first connect
+        let clientState = {
+            environment: null, bots: {}, round: 0,
+            stats: { hc_total_goals: 0, learning_total_goals: 0 },
+            isRunning: false,
+            needsFullReset: false,
+            needsRoundReset: false,
+            playerBotId: null,
+            playerOriginalBotId: null,
+            playerTarget: null
+        };
+        let visualizer = null;
+        const LOCAL_STORAGE_KEY_UI = 'multiBotSimParams_v5.15_AVProcessFix'; // Updated key
+        const LOCAL_STORAGE_KEY_PLAYER = 'multiBotPlayerControl_v5.15'; // Key for player session
+
+        let isDragging = false;
+        let lastSentTargetTime = 0;
+        const TARGET_UPDATE_INTERVAL_MS = 100;
+
+        // --- Visualizer Class (No changes needed from previous version) ---
+        class Visualizer {
+            constructor(canvasCtx, gridContainer) {
+                this.ctx = canvasCtx; this.canvas = canvasCtx.canvas; this.gridContainer = gridContainer;
+                this.gridSize = 0; this.cellSize = 0; this.currentGoals = []; this.currentObstacles = new Set();
+                this.claimedGoalsIDs = new Set(); this.lastContainerWidth = 0; this.ctx.imageSmoothingEnabled = false;
+            }
+            updateGridDimensions(newGridSize) {
+                if (!this.gridContainer || newGridSize === undefined || newGridSize <= 0) return;
+                const gridSizeNum = Number(newGridSize); if (isNaN(gridSizeNum) || gridSizeNum <= 0) return;
+                const availableWidth = Math.max(300, this.gridContainer.offsetWidth - 2);
+                const newCellSize = Math.max(4, Math.floor(availableWidth / gridSizeNum));
+                if (gridSizeNum !== this.gridSize || newCellSize !== this.cellSize || this.gridContainer.offsetWidth !== this.lastContainerWidth) {
+                    this.gridSize = gridSizeNum; this.cellSize = newCellSize; this.canvas.width = this.gridSize * this.cellSize; this.canvas.height = this.gridSize * this.cellSize; this.lastContainerWidth = this.gridContainer.offsetWidth; console.log(`Canvas resized: ${this.canvas.width}x${this.canvas.height}, CellSize: ${this.cellSize}`);
+                }
+            }
+            updateData(environmentState) {
+                if (!environmentState) return; this.updateGridDimensions(environmentState.size); this.currentGoals = environmentState.goals || []; this.currentObstacles = new Set((environmentState.obstacles || []).map(obs => `${obs[0]},${obs[1]}`)); this.claimedGoalsIDs = new Set(environmentState.claimedGoals || []);
+            }
+            drawGrid() {
+                if (!this.ctx || !this.gridSize || !this.cellSize) return; const canvasWidth = this.canvas.width; const canvasHeight = this.canvas.height; this.ctx.clearRect(0, 0, canvasWidth, canvasHeight); this.ctx.fillStyle = '#ffffff'; this.ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+                if (this.cellSize > 5) { this.ctx.strokeStyle = '#f0f0f0'; this.ctx.lineWidth = 1; for (let i = 0; i <= this.gridSize; i++) { const pos = Math.round(i * this.cellSize) + 0.5; this.ctx.beginPath(); this.ctx.moveTo(pos, 0); this.ctx.lineTo(pos, canvasHeight); this.ctx.stroke(); this.ctx.beginPath(); this.ctx.moveTo(0, pos); this.ctx.lineTo(canvasWidth, pos); this.ctx.stroke(); }
+                } else { this.ctx.strokeStyle = '#e0e0e0'; this.ctx.lineWidth = 0.5; this.ctx.strokeRect(0.5, 0.5, canvasWidth - 1, canvasHeight - 1); }
+                this.ctx.fillStyle = '#595959'; this.currentObstacles.forEach(obsString => { try { const [x, y] = obsString.split(',').map(Number); if(x>=0 && x<this.gridSize && y>=0 && y<this.gridSize) { this.ctx.fillRect(Math.floor(x * this.cellSize), Math.floor(y * this.cellSize), Math.ceil(this.cellSize), Math.ceil(this.cellSize)); } } catch(e){ /* ignore */ } });
+                this.ctx.textAlign = 'center'; this.ctx.textBaseline = 'middle'; const goalRadius = Math.max(1.5, this.cellSize * 0.35); const goalFontSize = Math.max(7, Math.floor(this.cellSize * 0.5));
+                this.currentGoals.forEach((goal) => { if(!goal || goal.x === undefined) return; const drawX = Math.floor(goal.x * this.cellSize); const drawY = Math.floor(goal.y * this.cellSize); const centerX = drawX + this.cellSize / 2; const centerY = drawY + this.cellSize / 2;
+                    if(goal.x>=0 && goal.x<this.gridSize && goal.y>=0 && goal.y<this.gridSize) { if (this.claimedGoalsIDs.has(goal.id)) { this.ctx.fillStyle = '#d9d9d9'; this.ctx.fillRect(drawX, drawY, Math.ceil(this.cellSize), Math.ceil(this.cellSize)); if (this.cellSize > 8) { this.ctx.fillStyle = '#8c8c8c'; this.ctx.font = `bold ${goalFontSize}px sans-serif`; this.ctx.fillText("X", centerX, centerY); } } else { this.ctx.fillStyle = 'gold'; this.ctx.beginPath(); this.ctx.arc(centerX, centerY, goalRadius, 0, Math.PI * 2); this.ctx.fill(); if (this.cellSize > 4) { this.ctx.strokeStyle = '#d48806'; this.ctx.lineWidth = 0.5; this.ctx.stroke(); } if (this.cellSize > 10) { this.ctx.fillStyle = '#434343'; this.ctx.font = `bold ${goalFontSize*0.8}px sans-serif`; this.ctx.fillText("G", centerX, centerY + 1); } } } });
+                this.ctx.lineWidth = 1;
+            }
+             drawBot(bot) {
+                 if (!bot || !bot.pos || bot.pos.x === undefined) return;
+                 const drawX = bot.pos.x * this.cellSize; const drawY = bot.pos.y * this.cellSize;
+                 const centerX = drawX + this.cellSize / 2; const centerY = drawY + this.cellSize / 2;
+                 const radius = Math.max(2, this.cellSize * 0.4);
+                 let color = '#888'; let isAvailableToJoin = false;
+
+                 if (bot.type === 'Hardcoded') { color = getComputedStyle(document.documentElement).getPropertyValue('--hardcoded-color').trim() || '#1890ff'; }
+                 else if (bot.type === 'Learning') {
+                     if (bot.is_player) { color = getComputedStyle(document.documentElement).getPropertyValue('--player-controlled-color').trim() || '#52c41a'; }
+                     else {
+                         color = getComputedStyle(document.documentElement).getPropertyValue('--learning-color').trim() || '#f5222d';
+                         if (clientState.playerBotId === null) { isAvailableToJoin = true; } // Mark as available only if no player is currently joined
+                     }
+                 }
+
+                 this.ctx.fillStyle = color; this.ctx.globalAlpha = 0.95; this.ctx.beginPath(); this.ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI); this.ctx.fill();
+
+                 if (bot.is_player) {
+                     this.ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--player-controlled-color').trim();
+                     this.ctx.lineWidth = Math.max(1.5, Math.floor(this.cellSize * 0.15));
+                     this.ctx.setLineDash([Math.max(1, this.cellSize * 0.1), Math.max(1, this.cellSize * 0.1)]);
+                     this.ctx.stroke(); this.ctx.setLineDash([]);
+                 }
+                 else if (isAvailableToJoin) {
+                     this.ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--learning-available-color').trim();
+                     this.ctx.lineWidth = Math.max(1.5, Math.floor(this.cellSize * 0.1));
+                     this.ctx.setLineDash([Math.max(2, this.cellSize * 0.15), Math.max(1, this.cellSize * 0.1)]);
+                     this.ctx.strokeRect(drawX + this.ctx.lineWidth / 2, drawY + this.ctx.lineWidth / 2, this.cellSize - this.ctx.lineWidth, this.cellSize - this.ctx.lineWidth);
+                     this.ctx.setLineDash([]);
+                 }
+
+                 if (bot.freezeTimer > 0) {
+                     this.ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--frozen-color').trim();
+                     this.ctx.lineWidth = Math.max(1.5, Math.floor(this.cellSize * 0.1));
+                     this.ctx.globalAlpha = 0.8; this.ctx.beginPath(); this.ctx.arc(centerX, centerY, radius * 1.15, 0, 2 * Math.PI); this.ctx.stroke();
+                 }
+
+                 this.ctx.globalAlpha = 1.0;
+
+                 if (this.cellSize > 14) {
+                     this.ctx.fillStyle = 'white'; this.ctx.font = `bold ${Math.max(6, Math.floor(this.cellSize * 0.35))}px sans-serif`;
+                     const idNum = bot.id.match(/\d+/); const label = bot.id[0] + (idNum ? idNum[0] : '');
+                     this.ctx.fillText(label, centerX, centerY + 1);
+                 }
+                 this.ctx.lineWidth = 1;
+             }
+             drawTarget(targetCoord) {
+                 if (!targetCoord || !this.cellSize || targetCoord.x === null || targetCoord.y === null) return; const centerX = targetCoord.x * this.cellSize + this.cellSize / 2; const centerY = targetCoord.y * this.cellSize + this.cellSize / 2; const crossSize = this.cellSize * 0.4;
+                 this.ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--target-crosshair-color').trim(); this.ctx.lineWidth = Math.max(1, this.cellSize * 0.08); this.ctx.globalAlpha = 0.8; this.ctx.beginPath(); this.ctx.moveTo(centerX - crossSize, centerY); this.ctx.lineTo(centerX + crossSize, centerY); this.ctx.moveTo(centerX, centerY - crossSize); this.ctx.lineTo(centerX, centerY + crossSize); this.ctx.stroke(); this.ctx.globalAlpha = 1.0; this.ctx.lineWidth = 1;
+             }
+            update(state) {
+                if (!state) return; this.updateData(state.environment); this.drawGrid(); Object.values(state.bots || {}).forEach(bot => this.drawBot(bot)); if (clientState.playerBotId && clientState.playerTarget) { this.drawTarget(clientState.playerTarget); }
+            }
+            getBotAtCoord(gridX, gridY) {
+                for (const botId in clientState.bots) {
+                    const bot = clientState.bots[botId];
+                    if (bot.pos && bot.pos.x === gridX && bot.pos.y === gridY) {
+                        return bot;
+                    }
+                }
+                return null;
+            }
+        }
+
+        // --- SocketIO Setup (No changes needed from previous version) ---
+        function setupSocket() {
+            try {
+                const socketUrl = window.location.origin; console.log(`Connecting Socket.IO to: ${socketUrl}`);
+                socket = io(socketUrl, { reconnectionAttempts: 5, transports: ['websocket'] });
+                socket.on('connect', () => { console.log("Socket connected."); connectionStatusEl.textContent = 'Connected'; connectionStatusEl.classList.add('connected'); statusEl.textContent = "Status: Connected. Waiting for state..."; const savedPlayer = localStorage.getItem(LOCAL_STORAGE_KEY_PLAYER); if (savedPlayer) { try { const playerData = JSON.parse(savedPlayer); if (playerData && playerData.originalBotId) { console.log(`Attempting rejoin for original bot: ${playerData.originalBotId}`); socket.emit('rejoin_game', { originalBotId: playerData.originalBotId }); } else { localStorage.removeItem(LOCAL_STORAGE_KEY_PLAYER); } } catch (e) { console.error("Error parsing saved player data:", e); localStorage.removeItem(LOCAL_STORAGE_KEY_PLAYER); } } });
+                socket.on('disconnect', (reason) => { connectionStatusEl.textContent = 'Disconnected'; connectionStatusEl.classList.remove('connected'); console.log("Disconnected:", reason); statusEl.textContent = `Status: Disconnected (${reason}).`; clientState.isRunning = false; clientState.playerTarget = null; updateTargetIndicator(); updateButtonStates(); updateMobileControls(); disableAllControls(); });
+                socket.on('connect_error', (err) => { connectionStatusEl.textContent = 'Connection Error'; connectionStatusEl.classList.remove('connected'); console.error('Connection Error:', err.message); statusEl.textContent = "Status: Connection Error."; clientState.isRunning = false; clientState.playerTarget = null; updateTargetIndicator(); disableAllControls(); });
+                socket.on('initial_state', (state) => { console.log("Received Initial state", state); if (!visualizer) visualizer = new Visualizer(ctx, gridContainerEl); serverConfig = copyConfig(state.config || {}); uiDefaults = copyConfig(state.config || {}); updateUIFromConfig(serverConfig); updateClientState(state); markParamsApplied(); clientState.isRunning = state.isRunning !== undefined ? state.isRunning : false; visualizer.update(clientState); updateInfoPanel(); updateButtonStates(); updateMobileControls(); statusEl.textContent = `Status: ${clientState.isRunning ? 'Running...' : 'Ready'}`; checkForNeededResets(); });
+                socket.on('update_state', (state) => { updateClientState(state); if (visualizer) visualizer.update(clientState); updateInfoPanel(); });
+                socket.on('config_update', (config) => { console.log("Server config update received"); serverConfig = copyConfig(config || {}); uiDefaults = copyConfig(serverConfig); updateUIFromConfig(serverConfig); markParamsApplied(); clearResetHints(); statusEl.textContent = "Status: Config Updated by Server."; updateButtonStates(); updateMobileControls(); });
+                socket.on('status_update', (data) => { statusEl.textContent = `Status: ${data.message}`; });
+                socket.on('simulation_started', () => { console.log("Sim started event received."); clientState.isRunning = true; statusEl.textContent = "Status: Running..."; updateButtonStates(); updateMobileControls(); clearResetHints(); });
+                socket.on('simulation_stopped', (data) => { console.log("Sim stopped event received."); clientState.isRunning = false; statusEl.textContent = `Status: ${data.message || 'Stopped.'}`; clientState.playerTarget = null; updateTargetIndicator(); updateButtonStates(); updateMobileControls(); checkForNeededResets(); });
+                socket.on('config_update_ack', (data) => { console.log("Config update ack received:", data); if (data.success) { serverConfig = copyConfig(data.updated_config || serverConfig); updateUIFromConfig(serverConfig); clientState.needsFullReset = data.needs_full_reset; clientState.needsRoundReset = data.needs_round_reset; markParamsApplied(); updateButtonStates(); updateMobileControls(); let msg = "Parameters Applied."; if(clientState.needsFullReset) msg += " 'Reset All' required."; else if(clientState.needsRoundReset) msg += " 'New Round' or 'Reset All' required."; statusEl.textContent = `Status: ${msg}`; } else { alert(`Failed to apply parameters: ${data.message || 'Unknown error'}`); statusEl.textContent = `Status: Parameter Apply Failed.`; } });
+                socket.on('join_ack', (data) => { if(data.success) { clientState.playerBotId = data.player_id; clientState.playerOriginalBotId = data.original_bot_id; playerInfoEl.textContent = `CONTROLLING BOT: ${clientState.playerBotId}`; localStorage.setItem(LOCAL_STORAGE_KEY_PLAYER, JSON.stringify({ originalBotId: data.original_bot_id })); statusEl.textContent = `Status: Joined, controlling ${clientState.playerBotId}.`; clientState.playerTarget = null; updateTargetIndicator(); } else { alert(`Failed to join: ${data.message}`); playerInfoEl.textContent = `Player Bot ID: None`; localStorage.removeItem(LOCAL_STORAGE_KEY_PLAYER); } updateButtonStates(); updateMobileControls(); });
+                socket.on('rejoin_ack', (data) => { if(data.success) { clientState.playerBotId = data.player_id; clientState.playerOriginalBotId = data.original_bot_id; playerInfoEl.textContent = `CONTROLLING BOT: ${clientState.playerBotId}`; localStorage.setItem(LOCAL_STORAGE_KEY_PLAYER, JSON.stringify({ originalBotId: data.original_bot_id })); statusEl.textContent = `Status: Rejoined, controlling ${clientState.playerBotId}.`; clientState.playerTarget = null; updateTargetIndicator(); } else { console.warn(`Rejoin failed: ${data.message}`); playerInfoEl.textContent = `Player Bot ID: None`; localStorage.removeItem(LOCAL_STORAGE_KEY_PLAYER); } updateButtonStates(); updateMobileControls(); });
+                socket.on('leave_ack', (data) => { if(data.success) { clientState.playerBotId = null; clientState.playerOriginalBotId = null; playerInfoEl.textContent = 'Player Bot ID: None'; localStorage.removeItem(LOCAL_STORAGE_KEY_PLAYER); clientState.playerTarget = null; updateTargetIndicator(); statusEl.textContent = `Status: Left bot control.`; } else { alert(`Failed to leave: ${data.message}`); } updateButtonStates(); updateMobileControls(); });
+                socket.on('player_joined', (data) => { console.log("Another player joined game:", data.player_id); updateInfoPanel(); updateButtonStates(); updateMobileControls(); });
+                socket.on('player_left', (data) => { console.log("Another player left bot:", data.player_id); if (clientState.playerBotId === data.player_id) { clientState.playerBotId = null; clientState.playerOriginalBotId = null; playerInfoEl.textContent = 'Player Bot ID: None'; localStorage.removeItem(LOCAL_STORAGE_KEY_PLAYER); clientState.playerTarget = null; updateTargetIndicator(); } updateButtonStates(); updateMobileControls(); updateInfoPanel(); });
+                console.log("Socket listeners setup complete.");
+            } catch (e) { console.error("Socket.IO init failed:", e); connectionStatusEl.textContent = 'JS Error'; statusEl.textContent = "Status: Error initializing connection."; alert("Could not initialize connection."); }
+        }
+
+        // Client-Side Logic (No changes needed from previous version)
+        function updateClientState(newState) {
+             if(!newState) return;
+             if (newState.environment) clientState.environment = newState.environment;
+             if (newState.bots) {
+                 clientState.bots = newState.bots;
+                 if (clientState.playerBotId && clientState.bots[clientState.playerBotId]) {
+                     clientState.playerTarget = clientState.bots[clientState.playerBotId].target_coord || null;
+                 } else {
+                     if (clientState.playerBotId) {
+                         console.log("Player bot state lost or control revoked by server.");
+                         clientState.playerBotId = null;
+                         clientState.playerOriginalBotId = null;
+                         localStorage.removeItem(LOCAL_STORAGE_KEY_PLAYER);
+                         playerInfoEl.textContent = 'Player Bot ID: None';
+                     }
+                     clientState.playerTarget = null;
+                 }
+                 updateTargetIndicator();
+             }
+             if (newState.round !== undefined) clientState.round = newState.round;
+             if (newState.stats) clientState.stats = newState.stats;
+             if (newState.isRunning !== undefined) clientState.isRunning = newState.isRunning;
+             if (newState.config) { serverConfig = copyConfig(newState.config); }
+             updateButtonStates();
+             updateMobileControls();
+        }
+        function updateInfoPanel() {
+             roundInfoEl.textContent = `Round: ${clientState.round}`;
+             document.getElementById('hc-total-goals').textContent = clientState.stats.hc_total_goals || 0;
+             document.getElementById('learning-total-goals').textContent = clientState.stats.learning_total_goals || 0;
+             let botCounts = { Hardcoded: 0, Learning: 0 }; let botInfoHTML = ''; let totalAnomaly = 0; let learningBotCount = 0;
+             const sortedBotIds = Object.keys(clientState.bots || {}).sort((a, b) => { const typeA = clientState.bots[a]?.type || ''; const typeB = clientState.bots[b]?.type || ''; const isPlayerA = clientState.bots[a]?.is_player || false; const isPlayerB = clientState.bots[b]?.is_player || false; if(isPlayerA && !isPlayerB) return -1; if(!isPlayerA && isPlayerB) return 1; const typeOrder = { 'Learning': 1, 'Hardcoded': 2 }; if(typeOrder[typeA] !== typeOrder[typeB]) return (typeOrder[typeA] || 99) - (typeOrder[typeB] || 99); const numA = parseInt(a.match(/\d+/)?.[0] || '0'); const numB = parseInt(b.match(/\d+/)?.[0] || '0'); return numA - numB; });
+             sortedBotIds.forEach(botId => { const bot = clientState.bots[botId]; if (!bot) return; const type = bot.type || 'Unknown'; let typeClass = ''; const isPlayerControlled = bot.is_player || false; if (type === 'Hardcoded') typeClass = 'hc-color'; else if (type === 'Learning') typeClass = isPlayerControlled ? 'pl-color' : 'ln-color'; if(type in botCounts) botCounts[type]++; const frozenStatus = bot.freezeTimer > 0 ? `<span class="frozen-status">Frozen (${bot.freezeTimer})</span>` : 'Active'; let anomalyText = ''; if (type === 'Learning' && bot.anomaly !== undefined && bot.anomaly !== null) { totalAnomaly += bot.anomaly; learningBotCount++; anomalyText = ` | Anomaly: ${bot.anomaly.toFixed(4)}`; } const playerMarker = isPlayerControlled ? '<span class="player-controlled-marker">(Player)</span>' : ''; botInfoHTML += `<div class="bot-type-info"><b><span class="${typeClass}">${type} ${bot.id}</span></b>${playerMarker} Pos: (${bot.pos?.x ?? '?', bot.pos?.y ?? '?'}) | Mode: ${bot.mode || 'N/A'} | Status: ${frozenStatus} | Goals: ${bot.goals_round || 0} ${anomalyText}</div>`; });
+             const avgAnomaly = learningBotCount > 0 ? (totalAnomaly / learningBotCount).toFixed(4) : 'N/A';
+             document.getElementById('learning-avg-anomaly').textContent = avgAnomaly; botsInfoContainerEl.innerHTML = botInfoHTML || '<div class="bot-type-info"><b>No bots found.</b></div>';
+        }
+        function updateButtonStates() {
+             const connected = socket && socket.connected; const hasChanges = !!document.querySelector('.param-item.changed'); const canJoin = connected && Object.values(clientState.bots || {}).some(b => b.type === 'Learning' && !b.is_player); const isPlayer = clientState.playerBotId !== null;
+             startButton.disabled = !connected || clientState.isRunning || clientState.needsFullReset || clientState.needsRoundReset || hasChanges;
+             stopButton.disabled = !connected || !clientState.isRunning; resetRoundButton.disabled = !connected || clientState.isRunning; resetFullButton.disabled = !connected || clientState.isRunning; applyParamsButton.disabled = !connected || clientState.isRunning || !hasChanges;
+             joinButton.disabled = !connected || isPlayer || !canJoin; joinButton.style.display = 'flex'; leaveButton.disabled = !connected || !isPlayer; leaveButton.style.display = isPlayer ? 'flex' : 'none';
+             saveParamsButton.disabled = !connected; loadParamsButton.disabled = !connected || clientState.isRunning; resetParamsButton.disabled = !connected || clientState.isRunning;
+             document.querySelectorAll('.param-item').forEach(item => { const key = item.dataset.param; const hintEl = item.querySelector('.reset-hint'); if (!hintEl) return; const rAllK = ['GRID_SIZE', 'NUM_HC_BOTS', 'NUM_LEARNING_BOTS', 'NUM_GOALS', 'LEARNING_BOT_DIM', 'LEARNING_BOT_MEM_DEPTH', 'LEARNING_BOT_LR', 'LEARNING_BOT_WEIGHT_DECAY', 'LEARNING_BOT_MOMENTUM', 'LEARNING_BOT_MAX_GRAD_NORM', 'ENABLE_AV', 'ENABLE_AV_OUTPUT', 'VISUALIZATION_MODE']; const rRndK = ['MAX_STEPS_PER_ROUND', 'VISIBILITY_RANGE', 'OBSTACLES_FACTOR_MIN', 'OBSTACLES_FACTOR_MAX', 'MIN_GOAL_START_DISTANCE_FACTOR', 'MIN_BOT_START_DISTANCE_FACTOR', 'MIN_BOT_GOAL_DISTANCE_FACTOR']; let needsReset = false; let resetText = ''; if (clientState.needsFullReset && rAllK.includes(key)) { needsReset = true; resetText = '(Reset All Req.)'; } else if (clientState.needsRoundReset && (rRndK.includes(key) || rAllK.includes(key))) { needsReset = true; resetText = '(Reset Req.)'; } item.classList.toggle('needs-reset', needsReset); hintEl.style.display = needsReset ? 'inline' : 'none'; hintEl.textContent = resetText; });
+        }
+        function updateMobileControls() { if (clientState.playerBotId && clientState.isRunning) mobileControlsEl.classList.add('enabled'); else mobileControlsEl.classList.remove('enabled'); }
+        function disableAllControls() { startButton.disabled = true; stopButton.disabled = true; resetRoundButton.disabled = true; resetFullButton.disabled = true; applyParamsButton.disabled = true; joinButton.disabled = true; leaveButton.disabled = true; loadParamsButton.disabled = true; resetParamsButton.disabled = true; saveParamsButton.disabled = true; updateMobileControls(); }
+        function copyConfig(configObj) { try { return JSON.parse(JSON.stringify(configObj || {})); } catch(e) { console.error("Failed to copy config", e); return {}; } }
+        function updateUIFromConfig(configToUse) {
+             console.log("Updating UI from config:", configToUse); if (!configToUse) return;
+             for(const key in paramInputs) {
+                 if (configToUse.hasOwnProperty(key)) {
+                     const input = paramInputs[key]; let value = configToUse[key];
+                     if (input.type === 'checkbox') { input.checked = Boolean(value); }
+                     else if (input.type === 'range') { input.value = Number(value || 0); if (rangeValueDisplays[key]) rangeValueDisplays[key].textContent = `${input.value}%`; }
+                     else if (input.tagName === 'SELECT') { input.value = String(value ?? ''); } // Handle select
+                     else if (input.step && input.step.includes('.')) { const decimals = (input.step.split('.')[1] || '').length; if (decimals > 0) value = parseFloat(value || 0).toFixed(decimals); }
+                     else { value = String(value ?? ''); }
+                     if (input.type !== 'checkbox' && input.type !== 'range' && input.tagName !== 'SELECT') input.value = value;
+                 } else console.warn(`Config key ${key} not found in received config.`);
+             } markParamsApplied(); updateButtonStates(); updateMobileControls();
+        }
+        function getUIConfig() {
+             const config = {}; const baseConfig = Object.keys(serverConfig).length > 0 ? serverConfig : uiDefaults;
+             for(const key in paramInputs) {
+                 const input = paramInputs[key]; let value; if (input.type === 'checkbox') { value = input.checked; } else { value = input.value; }
+                 const defaultValue = baseConfig[key] ?? null; const defaultType = defaultValue !== null ? typeof defaultValue : (input.type === 'number' || input.type === 'range' ? 'number' : (input.tagName === 'SELECT' ? 'string' : 'string'));
+                 try {
+                     if (input.type !== 'checkbox' && value === '' && defaultValue !== null) { value = defaultValue; input.value = defaultValue; if (input.type === 'range' && rangeValueDisplays[key]) rangeValueDisplays[key].textContent = `${defaultValue}%`; }
+                     if (defaultType === 'number' || input.type === 'range') { value = parseFloat(value); if (isNaN(value)) throw new Error("NaN"); if (input.min !== "" && value < parseFloat(input.min)) value = parseFloat(input.min); if (input.max !== "" && value > parseFloat(input.max)) value = parseFloat(input.max); if (input.step && !input.step.includes('.')) { value = Math.round(value); } else if (input.step && input.step.includes('.')) { const decimals = (input.step.split('.')[1] || '').length; if(decimals > 0) value = parseFloat(value.toFixed(decimals)); } }
+                     else if (defaultType === 'boolean') { value = input.checked; }
+                     else { value = String(value); } // Includes select values
+                     config[key] = value;
+                 } catch (e) { console.warn(`Error parsing UI value for ${key} ('${input.value}'), using default: ${defaultValue}`, e); config[key] = defaultValue; if (defaultValue !== null) { input.value = defaultValue; if (input.type === 'range' && rangeValueDisplays[key]) rangeValueDisplays[key].textContent = `${defaultValue}%`; } else input.value = ''; }
+             } return config;
+        }
+
+        function markParamChanged(key) { if(clientState.isRunning) return; const paramItem = paramItems[key]; const input = paramInputs[key]; if (!paramItem || !input || !serverConfig) return; const uiConf = getUIConfig(); const uiValue = uiConf[key]; const serverValue = serverConfig[key]; let isDifferent = false; if (typeof uiValue === 'number' && typeof serverValue === 'number') { isDifferent = Math.abs(uiValue - serverValue) > 1e-9; } else { isDifferent = String(uiValue) !== String(serverValue); } if (isDifferent) { paramItem.classList.add('changed'); } else { paramItem.classList.remove('changed'); } updateButtonStates(); updateMobileControls(); }
+        function markParamsApplied() { document.querySelectorAll('.param-item.changed').forEach(el => el.classList.remove('changed')); updateButtonStates(); updateMobileControls(); }
+        function clearResetHints() { clientState.needsFullReset = false; clientState.needsRoundReset = false; updateButtonStates(); updateMobileControls(); }
+        function checkForNeededResets() { if(clientState.isRunning) return; const uiConfig = getUIConfig(); let needsF = false; let needsR = false; const rAllK = ['GRID_SIZE', 'NUM_HC_BOTS', 'NUM_LEARNING_BOTS', 'NUM_GOALS', 'LEARNING_BOT_DIM', 'LEARNING_BOT_MEM_DEPTH', 'LEARNING_BOT_LR', 'LEARNING_BOT_WEIGHT_DECAY', 'LEARNING_BOT_MOMENTUM', 'LEARNING_BOT_MAX_GRAD_NORM', 'ENABLE_AV', 'ENABLE_AV_OUTPUT', 'VISUALIZATION_MODE']; const rRndK = ['MAX_STEPS_PER_ROUND', 'VISIBILITY_RANGE', 'OBSTACLES_FACTOR_MIN', 'OBSTACLES_FACTOR_MAX', 'MIN_GOAL_START_DISTANCE_FACTOR', 'MIN_BOT_START_DISTANCE_FACTOR', 'MIN_BOT_GOAL_DISTANCE_FACTOR']; let hasAnyChanges = false; for(const key in uiConfig) { if(serverConfig && serverConfig.hasOwnProperty(key)) { const uiVal = uiConfig[key]; const srvVal = serverConfig[key]; let different = false; if (typeof uiVal === 'number' && typeof srvVal === 'number') { different = Math.abs(uiVal - srvVal) > 1e-9; } else { different = String(uiVal) !== String(srvVal); } const item = paramItems[key]; if(different) { hasAnyChanges = true; if(item) item.classList.add('changed'); if (rAllK.includes(key)) needsF = true; else if (rRndK.includes(key)) needsR = true; } else { if(item) item.classList.remove('changed'); } } } clientState.needsFullReset = needsF; clientState.needsRoundReset = needsR || needsF; updateButtonStates(); updateMobileControls(); }
+        function saveParamsToLocalStorage() { try { const uiConf = getUIConfig(); localStorage.setItem(LOCAL_STORAGE_KEY_UI, JSON.stringify(uiConf)); console.log('UI Params saved.'); alert('UI Parameters saved!'); } catch (e) { console.error('Failed to save UI params:', e); alert('Error saving UI parameters.'); } }
+        function loadParamsFromLocalStorage() { if(clientState.isRunning) { alert("Stop simulation first."); return; } try { const saved = localStorage.getItem(LOCAL_STORAGE_KEY_UI); if (saved) { const parsed = JSON.parse(saved); updateUIFromConfig(parsed); markParamsApplied(); console.log('UI Params loaded.'); statusEl.textContent = "Status: UI Params Loaded. Apply or check resets."; checkForNeededResets(); alert('UI Parameters loaded. Review & Apply/Reset if needed.'); } else alert('No saved UI parameters found.'); } catch (e) { console.error('Failed to load UI params:', e); alert('Error loading UI parameters.'); } }
+        function resetParamsToDefault() { if(clientState.isRunning) { alert("Stop simulation first."); return; } console.log("Resetting UI to defaults:", uiDefaults); const baseConfig = Object.keys(uiDefaults).length > 0 ? uiDefaults : copyConfig(DEFAULT_CONFIG); updateUIFromConfig(baseConfig); markParamsApplied(); statusEl.textContent = "Status: UI Reset to Default. Apply/Reset check."; checkForNeededResets(); }
+
+        // --- Target Logic (No changes needed from previous version) ---
+        function updateTargetIndicator() { if (clientState.playerTarget && clientState.playerBotId) { targetIndicatorEl.textContent = `Target: (${clientState.playerTarget.x}, ${clientState.playerTarget.y})`; targetIndicatorEl.style.display = 'block'; } else { targetIndicatorEl.textContent = 'Target: None'; targetIndicatorEl.style.display = 'none'; } }
+        function sendTargetUpdate(targetCoord) { const now = Date.now(); if (isDragging && lastSentTargetTime && now - lastSentTargetTime < TARGET_UPDATE_INTERVAL_MS) return; if (socket && socket.connected && clientState.playerBotId) { const currentTarget = clientState.playerTarget; const changed = (targetCoord === null && currentTarget !== null) || (targetCoord !== null && currentTarget === null) || (targetCoord !== null && currentTarget !== null && (targetCoord.x !== currentTarget.x || targetCoord.y !== currentTarget.y)); if (changed) { socket.emit('update_player_target', { target: targetCoord }); clientState.playerTarget = targetCoord; updateTargetIndicator(); if (isDragging) lastSentTargetTime = now; } } }
+
+        // --- Player Input (Tap/Click/Drag & Mobile Buttons) (No changes needed from previous version) ---
+        function handleCanvasInteraction(event) {
+            if (!socket || !socket.connected || !visualizer || !visualizer.cellSize) return; event.preventDefault(); const rect = canvas.getBoundingClientRect(); let clientX, clientY;
+            if (event.type.startsWith('touch')) { if (event.type === 'touchend' && event.changedTouches.length > 0) { clientX = event.changedTouches[0].clientX; clientY = event.changedTouches[0].clientY; } else if (event.type === 'touchmove' && event.touches.length > 0) { clientX = event.touches[0].clientX; clientY = event.touches[0].clientY; } else if (event.type === 'touchstart' && event.touches.length > 0) { clientX = event.touches[0].clientX; clientY = event.touches[0].clientY; } else { return; }
+            } else { clientX = event.clientX; clientY = event.clientY; }
+            const canvasX = clientX - rect.left; const canvasY = clientY - rect.top; const targetGridX = Math.floor(canvasX / visualizer.cellSize); const targetGridY = Math.floor(canvasY / visualizer.cellSize);
+            if (targetGridX < 0 || targetGridX >= visualizer.gridSize || targetGridY < 0 || targetGridY >= visualizer.gridSize) { if (isDragging) isDragging = false; return; }
+
+            if (clientState.playerBotId) {
+                const playerBot = clientState.bots[clientState.playerBotId];
+                if (!playerBot) { clientState.playerBotId = null; clientState.playerOriginalBotId = null; localStorage.removeItem(LOCAL_STORAGE_KEY_PLAYER); return; }
+                if (targetGridX === playerBot.pos.x && targetGridY === playerBot.pos.y && (event.type === 'mouseup' || event.type === 'touchend')) { sendTargetUpdate(null); } else { sendTargetUpdate({ x: targetGridX, y: targetGridY }); }
+            } else {
+                if (event.type === 'mouseup' || event.type === 'touchend') {
+                    const clickedBot = visualizer.getBotAtCoord(targetGridX, targetGridY);
+                    if (clickedBot && clickedBot.type === 'Learning' && !clickedBot.is_player) { console.log(`Attempting join via click: ${clickedBot.id}`); socket.emit('join_game', { target_bot_id: clickedBot.id }); }
+                }
+            }
+        }
+        canvas.addEventListener('mousedown', (e) => { isDragging = true; handleCanvasInteraction(e); }); canvas.addEventListener('mousemove', (e) => { if (isDragging) { handleCanvasInteraction(e); } }); canvas.addEventListener('mouseup', (e) => { handleCanvasInteraction(e); isDragging = false; }); canvas.addEventListener('mouseleave', () => { isDragging = false; }); canvas.addEventListener('touchstart', (e) => { isDragging = true; handleCanvasInteraction(e); }, { passive: false }); canvas.addEventListener('touchmove', (e) => { if (isDragging) { handleCanvasInteraction(e); } }, { passive: false }); canvas.addEventListener('touchend', (e) => { handleCanvasInteraction(e); isDragging = false; }, { passive: false }); canvas.addEventListener('touchcancel', () => { isDragging = false; });
+
+        const addMobileButtonListener = (button, actionCode) => { if (button) { const sendAction = (e) => { if(!mobileControlsEl.classList.contains('enabled')) return; e.preventDefault(); sendPlayerAction(actionCode); }; button.addEventListener('touchstart', sendAction, { passive: false }); button.addEventListener('click', sendAction); } };
+        function sendPlayerAction(actionCode) { if (clientState.playerBotId && clientState.isRunning && socket && socket.connected) { socket.emit('player_action', { action: actionCode }); } }
+        addMobileButtonListener(mobileUp, 0); addMobileButtonListener(mobileLeft, 1); addMobileButtonListener(mobileRight, 2); addMobileButtonListener(mobileDown, 3); addMobileButtonListener(mobilePunch, 4); addMobileButtonListener(mobileClaim, 5);
+
+        // --- Add Button Event Listeners (No changes needed from previous version) ---
+        function setupButtonListeners() {
+            startButton.addEventListener('click', () => { if (!startButton.disabled) socket.emit('start_simulation'); });
+            stopButton.addEventListener('click', () => { if (!stopButton.disabled) socket.emit('stop_simulation'); });
+            resetRoundButton.addEventListener('click', () => { if (!resetRoundButton.disabled) socket.emit('reset_round'); });
+            resetFullButton.addEventListener('click', () => { if (!resetFullButton.disabled) socket.emit('reset_full'); });
+            applyParamsButton.addEventListener('click', () => { if (!applyParamsButton.disabled) { const configToSend = getUIConfig(); socket.emit('update_config', { config: configToSend }); } });
+            saveParamsButton.addEventListener('click', () => { if (!saveParamsButton.disabled) saveParamsToLocalStorage(); });
+            loadParamsButton.addEventListener('click', () => { if (!loadParamsButton.disabled) loadParamsFromLocalStorage(); });
+            resetParamsButton.addEventListener('click', () => { if (!resetParamsButton.disabled) resetParamsToDefault(); });
+            joinButton.addEventListener('click', () => { if (!joinButton.disabled) socket.emit('join_game'); });
+            leaveButton.addEventListener('click', () => { if (!leaveButton.disabled) socket.emit('leave_game'); });
+            console.log("UI Button listeners attached.");
+        }
+
+        // --- Initial Load and Resize ---
+        window.addEventListener('load', () => { console.log("Client Initializing..."); disableAllControls(); setupSocket(); setupButtonListeners(); });
+        let resizeTimeout; window.addEventListener('resize', () => { clearTimeout(resizeTimeout); resizeTimeout = setTimeout(() => { if (visualizer && clientState.environment) { try { visualizer.updateGridDimensions(clientState.environment.size); visualizer.update(clientState); } catch(e){ console.error("Resize error:", e); } } }, 150); });
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+[Unit]
+Description=Multi-Bot Titans Sim
+After=network.target
+
+[Service]
+User=yourusername
+WorkingDirectory=/path/to/your/app
+ExecStart=/usr/bin/python3 /path/to/your/app/server.py
+Restart=always
+Environment=PATH=/usr/bin:/usr/local/bin
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+
+#/etc/systemd/system/titansim.service
+#sudo systemctl daemon-reload
+#sudo systemctl enable titansim.service
+#sudo systemctl start titansim.service
