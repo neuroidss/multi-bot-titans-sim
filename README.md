@@ -87,5 +87,6 @@ Distributed under MIT License. See LICENSE for more information.
 
 ## 📬 Contact
 
-Project Maintainer: Your Name - dmitry.sukhoruchkin@neuroidss.com
+Project Maintainer: Dmitry Sukhoruchkin - dmitry.sukhoruchkin@neuroidss.com
+
 GitHub Profile: https://github.com/neuroidss
