@@ -83,7 +83,7 @@ python -m server --debug  # Add debug flags as needed
 
 ## 📜 License
 
-Distributed under MIT License. See LICENSE for more information.
+Distributed under AGPL-3.0 license. See LICENSE for more information.
 
 ## 📬 Contact
 
